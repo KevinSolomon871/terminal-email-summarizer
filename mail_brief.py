@@ -135,17 +135,36 @@ Strictly output using this clean Markdown structure (do not include code fences 
 *Filtered Noise:* X promo circulars / spam ignored.
 """
 
-    # Silence the Automatic Function Calling banner on standard output/error
+    candidate_models = [
+        "models/gemini-3.5-flash",
+        "models/gemini-3.8-flash",
+        "models/gemini-2.5-pro",
+        "models/gemini-3.1-flash-lite",
+        "models/gemini-3.1-pro-preview",
+    ]
+
+    response = None
+    last_error = None
+
     buf = io.StringIO()
     with contextlib.redirect_stderr(buf), contextlib.redirect_stdout(buf):
-        response = client.models.generate_content(
-            model="gemini-flash-latest",
-            contents=prompt,
-        )
+        for model_name in candidate_models:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+                if response and response.text:
+                    break
+            except Exception as e:
+                last_error = e
+                continue
+
+    if not response or not getattr(response, "text", None):
+        raise RuntimeError(f"All candidate Gemini models failed. Last error: {last_error}")
 
     console.print(f"[dim]• Gemini API: done ({time.time() - t0:.2f}s)[/dim]")
     return response.text
-
 # --- Main Flow ---
 def main():
     start_total = time.time()
